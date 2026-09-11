@@ -15,21 +15,12 @@ function formatDuration(seconds) {
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
 }
 
-export default function RunHistory({ testCaseId, refreshToken = 0, isDemoMode }) {
+export default function RunHistory({ testCaseId, refreshToken = 0 }) {
   const navigate = useNavigate()
   const [runs, setRuns] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (isDemoMode) {
-      setRuns([
-        { id: 'demo-run-1', status: 'passed', started_at: new Date().toISOString(), steps_passed: 4, steps_failed: 0, duration_seconds: 10.3, provider: 'mistral', total_tokens: 1450 },
-        { id: 'demo-run-2', status: 'passed', started_at: new Date(Date.now() - 3600000).toISOString(), steps_passed: 4, steps_failed: 0, duration_seconds: 12.1, provider: 'google', total_tokens: 1280 }
-      ])
-      setIsLoading(false)
-      return
-    }
-
     let cancelled = false
     async function loadRuns() {
       if (!testCaseId) return
@@ -45,7 +36,7 @@ export default function RunHistory({ testCaseId, refreshToken = 0, isDemoMode })
     }
     loadRuns()
     return () => { cancelled = true }
-  }, [testCaseId, refreshToken, isDemoMode])
+  }, [testCaseId, refreshToken])
 
   if (isLoading) return <p className="text-xs text-slate-400">Loading Run History…</p>
   if (!runs.length) return <p className="text-xs text-slate-400 py-4">No historical runs recorded yet. Click 'Run Agent' above to execute.</p>

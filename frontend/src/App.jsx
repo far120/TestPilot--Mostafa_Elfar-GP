@@ -1,8 +1,7 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense, useState } from 'react'
 import Navbar from './components/Navbar.jsx'
 import DeveloperProfileModal from './components/DeveloperProfileModal.jsx'
-import QuickDemoModal from './components/QuickDemoModal.jsx'
 
 const ProjectsPage  = lazy(() => import('./pages/ProjectsPage.jsx'))
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage.jsx'))
@@ -22,33 +21,22 @@ function PageLoader() {
 
 export default function App() {
   const [showProfile, setShowProfile] = useState(false)
-  const [showDemo, setShowDemo]       = useState(false)
-  const [isDemoMode, setIsDemoMode]   = useState(false)
-  const navigate = useNavigate()
-
-  const handleLaunchPresetDemo = (suite) => {
-    // If demo suite launched, redirect to demo run page or workspace
-    navigate(`/projects/demo-proj-1?demoSuite=${suite.id}`)
-  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-white">
       {/* Top Navigation */}
       <Navbar
         onOpenProfile={() => setShowProfile(true)}
-        onOpenDemo={() => setShowDemo(true)}
-        isDemoMode={isDemoMode}
-        setIsDemoMode={setIsDemoMode}
       />
 
       {/* Main Content Area */}
       <main className="flex-1">
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/" element={<ProjectsPage isDemoMode={isDemoMode} />} />
+            <Route path="/" element={<ProjectsPage />} />
             <Route path="/showcase" element={<ShowcasePage />} />
-            <Route path="/projects/:projectId" element={<WorkspacePage isDemoMode={isDemoMode} />} />
-            <Route path="/runs/:runId" element={<RunDetailPage isDemoMode={isDemoMode} />} />
+            <Route path="/projects/:projectId" element={<WorkspacePage />} />
+            <Route path="/runs/:runId" element={<RunDetailPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
@@ -62,10 +50,6 @@ export default function App() {
             <button onClick={() => setShowProfile(true)} className="hover:text-emerald-400 transition-colors">
               Developer Profile
             </button>
-            <span>•</span>
-            <button onClick={() => setShowDemo(true)} className="hover:text-amber-400 transition-colors">
-              Quick Demo
-            </button>
           </div>
         </div>
       </footer>
@@ -74,13 +58,6 @@ export default function App() {
       <DeveloperProfileModal
         open={showProfile}
         onClose={() => setShowProfile(false)}
-      />
-
-      {/* Quick Demo Modal */}
-      <QuickDemoModal
-        open={showDemo}
-        onClose={() => setShowDemo(false)}
-        onLaunchDemo={handleLaunchPresetDemo}
       />
     </div>
   )

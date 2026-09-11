@@ -8,7 +8,6 @@ import LiveRunPanel from './LiveRunPanel.jsx'
 import TestCaseForm from './TestCaseForm.jsx'
 import Modal from './ui/Modal.jsx'
 import Button from './ui/Button.jsx'
-import { DEMO_TEST_SUITES } from '../data/demoData.js'
 import { ExternalLink, MoreVertical, Edit2, Trash2, Layers, Play } from 'lucide-react'
 
 function ActionMenu({ onEdit, onDelete }) {
@@ -71,7 +70,6 @@ export default function TestCaseDetail({
   onDeleted,
   refreshToken = 0,
   onRefresh,
-  isDemoMode,
 }) {
   const [showEdit, setShowEdit]     = useState(false)
   const [showDelete, setShowDelete] = useState(false)
@@ -79,13 +77,6 @@ export default function TestCaseDetail({
   const [isLoading, setIsLoading]   = useState(true)
 
   useEffect(() => {
-    if (isDemoMode) {
-      const match = DEMO_TEST_SUITES.find(s => s.id === testCaseId) || DEMO_TEST_SUITES[0]
-      setTc(match)
-      setIsLoading(false)
-      return
-    }
-
     let cancelled = false
     async function loadTestCase() {
       if (!testCaseId) return
@@ -94,14 +85,14 @@ export default function TestCaseDetail({
         const response = await getTestCase(testCaseId)
         if (!cancelled) setTc(response)
       } catch {
-        if (!cancelled) setTc(DEMO_TEST_SUITES[0])
+        if (!cancelled) setTc(null)
       } finally {
         if (!cancelled) setIsLoading(false)
       }
     }
     loadTestCase()
     return () => { cancelled = true }
-  }, [testCaseId, refreshToken, isDemoMode])
+  }, [testCaseId, refreshToken])
 
   const editMutation = useMutation({
     mutationFn: (data) => updateTestCase(testCaseId, data),
@@ -162,7 +153,7 @@ export default function TestCaseDetail({
         {isRunning ? (
           <LiveRunPanel events={events ?? []} sessionId={sessionId} onStop={onStop} />
         ) : (
-          <RunHistory testCaseId={testCaseId} refreshToken={refreshToken} isDemoMode={isDemoMode} />
+          <RunHistory testCaseId={testCaseId} refreshToken={refreshToken} />
         )}
       </Section>
 

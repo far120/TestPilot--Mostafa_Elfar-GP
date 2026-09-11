@@ -295,8 +295,9 @@ async def websocket_execution(
             client_disconnected.set()
 
     try:
+        watch_task = asyncio.create_task(watch_disconnect())
         done, pending = await asyncio.wait(
-            [handle.task, asyncio.create_task(watch_disconnect())],
+            {handle.task, watch_task},
             return_when=asyncio.FIRST_COMPLETED,
         )
         for task in pending:

@@ -10,7 +10,6 @@ import ProjectCard from '../components/ProjectCard.jsx'
 import Modal from '../components/ui/Modal.jsx'
 import Button from '../components/ui/Button.jsx'
 import { Input, Textarea } from '../components/ui/Input.jsx'
-import { DEMO_PROJECTS } from '../data/demoData.js'
 import {
   FolderPlus,
   Sparkles,
@@ -105,7 +104,7 @@ function DeleteModal({ project, onConfirm, onClose, loading, error }) {
   )
 }
 
-export default function ProjectsPage({ isDemoMode }) {
+export default function ProjectsPage() {
   const [showCreate, setShowCreate]     = useState(false)
   const [editProject, setEditProject]   = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -120,13 +119,6 @@ export default function ProjectsPage({ isDemoMode }) {
   }, [])
 
   useEffect(() => {
-    if (isDemoMode) {
-      setProjects(DEMO_PROJECTS)
-      setIsLoading(false)
-      setIsError(false)
-      return
-    }
-
     let cancelled = false
     async function loadProjects() {
       setIsLoading(true)
@@ -134,13 +126,12 @@ export default function ProjectsPage({ isDemoMode }) {
       try {
         const response = await listProjects()
         if (!cancelled) {
-          setProjects(response?.items ?? DEMO_PROJECTS)
+          setProjects(response?.items ?? [])
         }
       } catch {
         if (!cancelled) {
-          // Fallback gracefully to demo projects if local backend is offline
-          setProjects(DEMO_PROJECTS)
-          setIsError(false)
+          setProjects([])
+          setIsError(true)
         }
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -149,7 +140,7 @@ export default function ProjectsPage({ isDemoMode }) {
 
     loadProjects()
     return () => { cancelled = true }
-  }, [reloadTick, isDemoMode])
+  }, [reloadTick])
 
   const createMutation = useMutation({
     mutationFn: createProject,
@@ -182,11 +173,6 @@ export default function ProjectsPage({ isDemoMode }) {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
                 <Sparkles className="h-3.5 w-3.5" /> TestPilot Workspace
               </span>
-              {isDemoMode && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-0.5 text-xs font-semibold text-purple-400 border border-purple-500/30">
-                  Interactive Demo Mode
-                </span>
-              )}
             </div>
 
             <h1 className="text-3xl font-extrabold text-white sm:text-4xl tracking-tight">
@@ -243,7 +229,6 @@ export default function ProjectsPage({ isDemoMode }) {
               <ProjectCard
                 key={project.id}
                 project={project}
-                isDemoMode={isDemoMode}
                 onEdit={(p) => { editMutation.reset(); setEditProject(p) }}
                 onDelete={(p) => { deleteMutation.reset(); setDeleteTarget(p) }}
               />

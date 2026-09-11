@@ -2,8 +2,20 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    try:
+        import uvicorn.loops.asyncio
+        import uvicorn.loops.auto
+        uvicorn.loops.asyncio.asyncio_loop_factory = lambda use_subprocess=False: asyncio.ProactorEventLoop
+        uvicorn.loops.auto.auto_loop_factory = lambda use_subprocess=False: asyncio.ProactorEventLoop
+    except Exception:
+        pass
 
 from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI

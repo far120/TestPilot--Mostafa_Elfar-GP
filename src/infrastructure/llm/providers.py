@@ -22,10 +22,10 @@ class ModelProvider(Enum):
 
 
 PROVIDER_DEFAULTS: dict[ModelProvider, str] = {
-    ModelProvider.MISTRAL: "mistral-large-2512",
-    ModelProvider.GOOGLE: "gemma-4-31b-it",
+    ModelProvider.MISTRAL: "mistral-large-latest",
+    ModelProvider.GOOGLE: "gemini-2.0-flash",
     ModelProvider.OLLAMA: "ministral-3:3b",
-    ModelProvider.OPENROUTER: "sourceful/riverflow-v2-pro",
+    ModelProvider.OPENROUTER: "google/gemini-2.0-flash-001",
     ModelProvider.LLAMA_CPP: "local-model"
 }
 

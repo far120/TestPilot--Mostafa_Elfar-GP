@@ -2,9 +2,21 @@ from __future__ import annotations
 
 import asyncio
 import io
+import sys
+import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypedDict, cast
+
+if sys.platform == "win32":
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        import uvicorn.loops.asyncio
+        import uvicorn.loops.auto
+        uvicorn.loops.asyncio.asyncio_loop_factory = lambda use_subprocess=False: asyncio.ProactorEventLoop
+        uvicorn.loops.auto.auto_loop_factory = lambda use_subprocess=False: asyncio.ProactorEventLoop
+    except Exception:
+        pass
 
 import playwright.async_api as pw
 from PIL import Image
@@ -13,6 +25,31 @@ from src.config import BrowserConfig
 
 if TYPE_CHECKING:
     from logging import Logger
+
+
+_global_proactor_loop: asyncio.AbstractEventLoop | None = None
+_global_proactor_lock = threading.Lock()
+
+
+def _get_proactor_loop() -> asyncio.AbstractEventLoop:
+    global _global_proactor_loop
+    with _global_proactor_lock:
+        if _global_proactor_loop is None or _global_proactor_loop.is_closed():
+            ready = threading.Event()
+
+            def _thread_target():
+                nonlocal ready
+                loop = asyncio.WindowsProactorEventLoopPolicy().new_event_loop()
+                asyncio.set_event_loop(loop)
+                global _global_proactor_loop
+                _global_proactor_loop = loop
+                ready.set()
+                loop.run_forever()
+
+            t = threading.Thread(target=_thread_target, daemon=True)
+            t.start()
+            ready.wait()
+    return _global_proactor_loop
 
 
 ScrollDirection = Literal["up", "down"]
@@ -102,6 +139,7 @@ class Browser:
         "_logger",
         "_playwright",
         "_owns_playwright",
+        "_proactor_loop",
     )
 
     def __init__(
@@ -111,12 +149,20 @@ class Browser:
         logger: Logger,
         playwright_instance: pw.Playwright | None = None,
         owns_playwright: bool = False,
+        proactor_loop: asyncio.AbstractEventLoop | None = None,
     ) -> None:
         self._page = page
         self._config = config
         self._logger = logger
         self._playwright = playwright_instance
         self._owns_playwright = owns_playwright
+        self._proactor_loop = proactor_loop
+
+    async def _run_coro(self, coro):
+        if self._proactor_loop and self._proactor_loop is not asyncio.get_running_loop():
+            fut = asyncio.run_coroutine_threadsafe(coro, self._proactor_loop)
+            return await asyncio.wrap_future(fut)
+        return await coro
 
     @classmethod
     async def create(
@@ -134,29 +180,50 @@ class Browser:
 
         logger.info("Starting browser...")
 
-        playwright = await pw.async_playwright().start()
-        browser = None
-        context = None
+        current_loop = asyncio.get_running_loop()
+        needs_thread = sys.platform == "win32" and isinstance(
+            current_loop, asyncio.SelectorEventLoop
+        )
 
-        try:
-            browser = await playwright.chromium.launch(headless=config.headless)
-            context = await browser.new_context(
-                bypass_csp=True,
-                viewport={
-                    "width": config.viewport_width,
-                    "height": config.viewport_height,
-                },
-                locale=config.locale,
-                timezone_id=config.timezone_id,
-                has_touch=config.has_touch,
-            )
-            context.set_default_timeout(config.timeout_ms)
+        if needs_thread:
+            logger.info("Windows SelectorEventLoop detected; delegating Playwright to Proactor thread...")
+            proactor_loop = _get_proactor_loop()
 
-            for script in ("element_to_html_string.js", "mark_page.js"):
-                await context.add_init_script(_load_js(script))
+            async def _init():
+                playwright = await pw.async_playwright().start()
+                browser = None
+                context = None
+                try:
+                    browser = await playwright.chromium.launch(headless=config.headless)
+                    context = await browser.new_context(
+                        bypass_csp=True,
+                        viewport={
+                            "width": config.viewport_width,
+                            "height": config.viewport_height,
+                        },
+                        locale=config.locale,
+                        timezone_id=config.timezone_id,
+                        has_touch=config.has_touch,
+                    )
+                    context.set_default_timeout(config.timeout_ms)
 
-            page = await context.new_page()
-            logger.info("Browser ready")
+                    for script in ("element_to_html_string.js", "mark_page.js"):
+                        await context.add_init_script(_load_js(script))
+
+                    page = await context.new_page()
+                    return page, playwright
+                except Exception:
+                    if context:
+                        await context.close()
+                    if browser:
+                        await browser.close()
+                    if playwright:
+                        await playwright.stop()
+                    raise
+
+            fut = asyncio.run_coroutine_threadsafe(_init(), proactor_loop)
+            page, playwright = await asyncio.wrap_future(fut)
+            logger.info("Browser ready (in Proactor thread)")
 
             return cls(
                 page=page,
@@ -164,15 +231,49 @@ class Browser:
                 logger=logger,
                 playwright_instance=playwright,
                 owns_playwright=True,
+                proactor_loop=proactor_loop,
             )
+        else:
+            playwright = await pw.async_playwright().start()
+            browser = None
+            context = None
 
-        except Exception:
-            if context:
-                await context.close()
-            if browser:
-                await browser.close()
-            await playwright.stop()
-            raise
+            try:
+                browser = await playwright.chromium.launch(headless=config.headless)
+                context = await browser.new_context(
+                    bypass_csp=True,
+                    viewport={
+                        "width": config.viewport_width,
+                        "height": config.viewport_height,
+                    },
+                    locale=config.locale,
+                    timezone_id=config.timezone_id,
+                    has_touch=config.has_touch,
+                )
+                context.set_default_timeout(config.timeout_ms)
+
+                for script in ("element_to_html_string.js", "mark_page.js"):
+                    await context.add_init_script(_load_js(script))
+
+                page = await context.new_page()
+                logger.info("Browser ready")
+
+                return cls(
+                    page=page,
+                    config=config,
+                    logger=logger,
+                    playwright_instance=playwright,
+                    owns_playwright=True,
+                )
+
+            except Exception:
+                if context:
+                    await context.close()
+                if browser:
+                    await browser.close()
+                if playwright:
+                    await playwright.stop()
+                raise
 
     async def __aenter__(self) -> Browser:
         return self
@@ -182,6 +283,9 @@ class Browser:
 
     async def close(self) -> None:
         """Release all browser resources."""
+        return await self._run_coro(self._impl_close())
+
+    async def _impl_close(self) -> None:
         page = self._page
         context = page.context if page else None
         browser = context.browser if context else None
@@ -217,6 +321,9 @@ class Browser:
 
     async def goto(self, url: str) -> str:
         """Navigate to a URL."""
+        return await self._run_coro(self._impl_goto(url))
+
+    async def _impl_goto(self, url: str) -> str:
         self._logger.info("Navigating to %s", url)
 
         try:
@@ -233,6 +340,9 @@ class Browser:
 
     async def reload(self) -> str:
         """Reload the current page."""
+        return await self._run_coro(self._impl_reload())
+
+    async def _impl_reload(self) -> str:
         self._logger.info("Reloading page")
 
         try:
@@ -247,6 +357,9 @@ class Browser:
 
     async def click(self, mark: str | int) -> str:
         """Click an element by its mark label."""
+        return await self._run_coro(self._impl_click(mark))
+
+    async def _impl_click(self, mark: str | int) -> str:
         target = await self._get_element(mark)
         html = await self._element_html(target)
         url_before = self.url
@@ -266,6 +379,9 @@ class Browser:
 
     async def fill(self, mark: str | int, value: str) -> str:
         """Fill a text input with a value."""
+        return await self._run_coro(self._impl_fill(mark, value))
+
+    async def _impl_fill(self, mark: str | int, value: str) -> str:
         target = await self._get_element(mark)
         html = await self._element_html(target)
         tag = await target.evaluate("el => el.tagName")
@@ -298,6 +414,9 @@ class Browser:
 
     async def select(self, mark: str | int, option: str) -> str:
         """Select an option from a dropdown."""
+        return await self._run_coro(self._impl_select(mark, option))
+
+    async def _impl_select(self, mark: str | int, option: str) -> str:
         target = await self._get_element(mark)
 
         self._logger.info("Selecting '%s' from [%s]", option, mark)
@@ -317,6 +436,11 @@ class Browser:
         self, direction: ScrollDirection, pixels: int | None = None
     ) -> str:
         """Scroll the page up or down."""
+        return await self._run_coro(self._impl_scroll(direction, pixels))
+
+    async def _impl_scroll(
+        self, direction: ScrollDirection, pixels: int | None = None
+    ) -> str:
         pixels = pixels or self._config.scroll_amount
         viewport = await self._get_viewport()
 
@@ -343,6 +467,9 @@ class Browser:
 
     async def wait(self, seconds: float) -> str:
         """Wait for a specified duration."""
+        return await self._run_coro(self._impl_wait(seconds))
+
+    async def _impl_wait(self, seconds: float) -> str:
         self._logger.info("Waiting %ss", seconds)
         await asyncio.sleep(seconds)
         return f"Waited {seconds} seconds"
@@ -351,6 +478,9 @@ class Browser:
 
     async def mark_page(self) -> list[Mark]:
         """Mark interactive elements and return their data."""
+        return await self._run_coro(self._impl_mark_page())
+
+    async def _impl_mark_page(self) -> list[Mark]:
         await self._wait_stable()
         await self._ensure_scripts()
         result = await self._page.evaluate("window.markPage()")
@@ -359,6 +489,9 @@ class Browser:
 
     async def unmark_page(self) -> None:
         """Remove element marks from the page."""
+        return await self._run_coro(self._impl_unmark_page())
+
+    async def _impl_unmark_page(self) -> None:
         await self._ensure_scripts()
         await self._page.evaluate("window.unmarkPage()")
 
@@ -366,11 +499,17 @@ class Browser:
 
     async def get_page_info(self) -> PageInfo:
         """Get current page URL and title."""
+        return await self._run_coro(self._impl_get_page_info())
+
+    async def _impl_get_page_info(self) -> PageInfo:
         title = await self._page.title()
         return {"url": self.url, "title": title}
 
     async def screenshot(self) -> bytes:
         """Capture a screenshot, resized according to config."""
+        return await self._run_coro(self._impl_screenshot())
+
+    async def _impl_screenshot(self) -> bytes:
         try:
             await self._wait_stable()
             raw = await self._page.screenshot()

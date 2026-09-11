@@ -8,7 +8,6 @@ import TestCaseSidebar from '../components/TestCaseSidebar.jsx'
 import TestCaseDetail from '../components/TestCaseDetail.jsx'
 import TestCaseForm from '../components/TestCaseForm.jsx'
 import Modal from '../components/ui/Modal.jsx'
-import { DEMO_PROJECTS, DEMO_TEST_SUITES, DEMO_EXECUTION_EVENTS } from '../data/demoData.js'
 import { FileCode2, Sparkles, Plus } from 'lucide-react'
 
 function EmptyDetail() {
@@ -27,11 +26,11 @@ function EmptyDetail() {
   )
 }
 
-export default function WorkspacePage({ isDemoMode }) {
+export default function WorkspacePage() {
   const { projectId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const activeId = searchParams.get('tc') ?? (isDemoMode ? 'demo-tc-1' : null)
+  const activeId = searchParams.get('tc') ?? null
   const [project, setProject] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -44,12 +43,6 @@ export default function WorkspacePage({ isDemoMode }) {
   }, [setSearchParams])
 
   useEffect(() => {
-    if (isDemoMode) {
-      const match = DEMO_PROJECTS.find(p => p.id === projectId) || DEMO_PROJECTS[0]
-      setProject(match)
-      return
-    }
-
     let cancelled = false
     async function loadProject() {
       if (!projectId) return
@@ -57,13 +50,13 @@ export default function WorkspacePage({ isDemoMode }) {
         const response = await getProject(projectId)
         if (!cancelled) setProject(response)
       } catch {
-        if (!cancelled) setProject(DEMO_PROJECTS[0])
+        if (!cancelled) setProject(null)
       }
     }
 
     loadProject()
     return () => { cancelled = true }
-  }, [projectId, refreshTick, isDemoMode])
+  }, [projectId, refreshTick])
 
   const [showCreate, setShowCreate] = useState(false)
 
@@ -77,8 +70,6 @@ export default function WorkspacePage({ isDemoMode }) {
   })
 
   const [runningTcId, setRunningTcId] = useState(null)
-  const [demoEvents, setDemoEvents]   = useState([])
-  const [isDemoRunning, setIsDemoRunning] = useState(false)
 
   const handleFinished = useCallback(() => {
     setRunningTcId(null)
@@ -92,44 +83,17 @@ export default function WorkspacePage({ isDemoMode }) {
 
   const handleRun = useCallback((config) => {
     setRunningTcId(activeId)
-
-    if (isDemoMode) {
-      setIsDemoRunning(true)
-      setDemoEvents([])
-
-      // Simulate step by step streaming events
-      DEMO_EXECUTION_EVENTS.forEach((evt, idx) => {
-        setTimeout(() => {
-          setDemoEvents((prev) => [...prev, evt])
-          if (idx === DEMO_EXECUTION_EVENTS.length - 1) {
-            setIsDemoRunning(false)
-            handleFinished()
-          }
-        }, (idx + 1) * 800)
-      })
-      return
-    }
-
     startRun(config)
-  }, [activeId, startRun, isDemoMode, handleFinished])
+  }, [activeId, startRun])
 
   const handleStop = useCallback(() => {
-    if (isDemoMode) {
-      setIsDemoRunning(false)
-      setRunningTcId(null)
-      return
-    }
-
     stopWatching()
     if (runningTcId) {
       stopTestCase(runningTcId).catch(console.error)
     }
     setRunningTcId(null)
     refreshWorkspace()
-  }, [stopWatching, runningTcId, refreshWorkspace, isDemoMode])
-
-  const activeEvents = isDemoMode ? demoEvents : events
-  const activeIsRunning = isDemoMode ? isDemoRunning : isRunning
+  }, [stopWatching, runningTcId, refreshWorkspace])
 
   return (
     <div className="flex h-[calc(100vh-4.5rem)] gap-4 overflow-hidden px-4 py-4 lg:px-6 lg:py-6">
@@ -143,7 +107,6 @@ export default function WorkspacePage({ isDemoMode }) {
         onNewTestCase={() => { createMutation.reset(); setShowCreate(true) }}
         runningId={runningTcId}
         refreshToken={refreshTick}
-        isDemoMode={isDemoMode}
       />
 
       {/* Main Panel */}
@@ -153,15 +116,14 @@ export default function WorkspacePage({ isDemoMode }) {
             key={activeId}
             testCaseId={activeId}
             projectId={projectId}
-            isRunning={activeIsRunning && runningTcId === activeId}
-            events={activeEvents}
+            isRunning={isRunning && runningTcId === activeId}
+            events={events}
             sessionId={sessionId}
             onRun={handleRun}
             onStop={handleStop}
             onDeleted={() => selectTestCase(null)}
             refreshToken={refreshTick}
             onRefresh={refreshWorkspace}
-            isDemoMode={isDemoMode}
           />
         ) : (
           <EmptyDetail />

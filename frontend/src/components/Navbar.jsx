@@ -1,18 +1,13 @@
-import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Bot,
   GraduationCap,
   LayoutDashboard,
-  User,
-  Zap,
-  CheckCircle2,
-  AlertCircle,
   Code2,
   Sparkles
 } from 'lucide-react'
 
-export default function Navbar({ onOpenProfile, onOpenDemo, isDemoMode, setIsDemoMode }) {
+export default function Navbar({ onOpenProfile }) {
   const location = useLocation()
 
   return (
@@ -76,42 +71,8 @@ export default function Navbar({ onOpenProfile, onOpenDemo, isDemoMode, setIsDem
           </Link>
         </nav>
 
-        {/* Right: Quick Action Buttons & Developer Profile */}
+        {/* Right: Developer Profile */}
         <div className="flex items-center gap-3">
-          
-          {/* Quick Demo Preset Button */}
-          <button
-            onClick={onOpenDemo}
-            className="hidden sm:flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition-all"
-            title="Launch preset test cases"
-          >
-            <Zap className="h-3.5 w-3.5 text-amber-400" />
-            <span>Quick Demo</span>
-          </button>
-
-          {/* Mode Switcher Badge */}
-          <button
-            onClick={() => setIsDemoMode(!isDemoMode)}
-            className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-all ${
-              isDemoMode
-                ? 'border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
-                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-            }`}
-            title="Toggle between real FastAPI backend and Simulated Demo mode"
-          >
-            {isDemoMode ? (
-              <>
-                <span className="h-2 w-2 rounded-full bg-purple-400 animate-pulse" />
-                <span className="hidden md:inline">Demo Mode</span>
-              </>
-            ) : (
-              <>
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="hidden md:inline">Live API</span>
-              </>
-            )}
-          </button>
-
           {/* Developer Profile Pill */}
           <button
             onClick={onOpenProfile}

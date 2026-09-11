@@ -11,7 +11,6 @@ import {
 import Modal from '../components/ui/Modal.jsx'
 import Button from '../components/ui/Button.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
-import { DEMO_EXECUTION_EVENTS } from '../data/demoData.js'
 import {
   ArrowLeft,
   Trash2,
@@ -106,30 +105,7 @@ function StepResultsTable({ stepResults, testCaseSteps }) {
   )
 }
 
-function ScreenshotGrid({ runId, isDemoMode }) {
-  if (isDemoMode) {
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <p className="text-[11px] font-mono text-slate-400">Step 1 — Page Observation</p>
-          <img
-            src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80"
-            alt="Step 1 Observation"
-            className="w-full h-44 object-cover rounded-xl border border-slate-800 shadow-md"
-          />
-        </div>
-        <div className="space-y-1">
-          <p className="text-[11px] font-mono text-slate-400">Step 2 — Action Verification</p>
-          <img
-            src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80"
-            alt="Step 2 Verification"
-            className="w-full h-44 object-cover rounded-xl border border-slate-800 shadow-md"
-          />
-        </div>
-      </div>
-    )
-  }
-
+function ScreenshotGrid({ runId }) {
   const [screenshots, setScreenshots] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -176,34 +152,43 @@ function ScreenshotGrid({ runId, isDemoMode }) {
   )
 }
 
-export default function RunDetailPage({ isDemoMode }) {
+function RunLogsView({ runId }) {
+  const [logs, setLogs] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchLogs() {
+      try {
+        const res = await getLogs(runId)
+        if (!cancelled) setLogs(res?.logs ?? '')
+      } catch {
+        if (!cancelled) setLogs('')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchLogs()
+    return () => { cancelled = true }
+  }, [runId])
+
+  if (loading) return <Spinner size="sm" />
+  if (!logs) return <p className="text-xs text-slate-400">No telemetry logs recorded.</p>
+
+  return (
+    <pre className="max-h-64 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950 p-4 text-[11px] font-mono text-slate-300 leading-relaxed whitespace-pre-wrap">
+      {logs}
+    </pre>
+  )
+}
+
+export default function RunDetailPage() {
   const { runId } = useParams()
   const navigate = useNavigate()
   const [showDelete, setShowDelete] = useState(false)
   const [run, setRun] = useState(null)
 
   useEffect(() => {
-    if (isDemoMode) {
-      setRun({
-        id: "demo-run-1",
-        project_id: "demo-proj-1",
-        test_case_name: "SauceDemo Login & Add To Cart",
-        status: "passed",
-        duration_seconds: 10.3,
-        provider: "mistral",
-        model: "mistral-large-2512",
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        steps_passed: 2,
-        steps_failed: 0,
-        step_results: [
-          { id: 1, step_number: 1, action: "Login with standard_user", assertion: "Redirect to inventory", status: "passed", retry_count: 0, result_reason: "Success" },
-          { id: 2, step_number: 2, action: "Click Add to Cart", assertion: "Cart badge shows 1", status: "passed", retry_count: 0, result_reason: "Success" }
-        ]
-      })
-      return
-    }
-
     let cancelled = false
     async function loadRun() {
       try {
@@ -215,7 +200,7 @@ export default function RunDetailPage({ isDemoMode }) {
     }
     loadRun()
     return () => { cancelled = true }
-  }, [runId, isDemoMode])
+  }, [runId])
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteTestRun(runId),
@@ -223,6 +208,21 @@ export default function RunDetailPage({ isDemoMode }) {
   })
 
   if (!run) return <div className="p-12 text-center text-slate-400 text-xs">Loading Run Details…</div>
+
+  const stepsPassed = run.steps_passed ?? 0
+  const stepsFailed = run.steps_failed ?? 0
+  const totalSteps = stepsPassed + stepsFailed
+  const successRate = totalSteps > 0
+    ? `${Math.round((stepsPassed / totalSteps) * 100)}%`
+    : run.status === 'passed'
+    ? '100%'
+    : '0%'
+
+  const statusColorClass = run.status === 'passed'
+    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+    : run.status === 'failed'
+    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+    : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
@@ -238,7 +238,7 @@ export default function RunDetailPage({ isDemoMode }) {
           </button>
           <div>
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              {run.test_case_name}
+              {run.test_case_name || 'Test Run Details'}
             </h1>
             <p className="text-xs font-mono text-slate-400">
               Run ID: {run.id} • Started {fmt(run.started_at)}
@@ -247,12 +247,9 @@ export default function RunDetailPage({ isDemoMode }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
-            run.status === 'passed' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
-            'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-          }`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusColorClass}`}>
             {run.status === 'passed' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-            {run.status.toUpperCase()}
+            {(run.status || 'unknown').toUpperCase()}
           </span>
 
           <button
@@ -268,8 +265,8 @@ export default function RunDetailPage({ isDemoMode }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatBox label="Execution Time" value={duration(run.duration_seconds)} />
         <StatBox label="LLM Provider" value={run.provider ?? 'mistral'} valueClass="text-emerald-400" />
-        <StatBox label="Steps Passed" value={`${run.steps_passed} / ${run.steps_passed + run.steps_failed}`} valueClass="text-cyan-400" />
-        <StatBox label="Success Rate" value="100%" valueClass="text-emerald-400" />
+        <StatBox label="Steps Passed" value={`${stepsPassed} / ${totalSteps}`} valueClass="text-cyan-400" />
+        <StatBox label="Success Rate" value={successRate} valueClass={stepsFailed > 0 || run.status === 'error' ? 'text-rose-400' : 'text-emerald-400'} />
       </div>
 
       {/* Step Results Table */}
@@ -279,7 +276,12 @@ export default function RunDetailPage({ isDemoMode }) {
 
       {/* Screenshots Grid */}
       <Section title="Visual Perception Snapshots">
-        <ScreenshotGrid runId={runId} isDemoMode={isDemoMode} />
+        <ScreenshotGrid runId={runId} />
+      </Section>
+
+      {/* Execution Telemetry Logs */}
+      <Section title="Execution Telemetry Logs">
+        <RunLogsView runId={runId} />
       </Section>
 
       {/* Delete Modal */}

@@ -68,16 +68,12 @@ function KebabMenu({ onEdit, onDelete }) {
   )
 }
 
-export default function ProjectCard({ project, onEdit, onDelete, isDemoMode }) {
+export default function ProjectCard({ project, onEdit, onDelete }) {
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
 
   useEffect(() => {
     let cancelled = false
-    if (isDemoMode) {
-      setStats({ success_rate: 100, total_runs: 5, passed_runs: 5, failed_runs: 0 })
-      return
-    }
 
     async function loadStats() {
       try {
@@ -90,7 +86,7 @@ export default function ProjectCard({ project, onEdit, onDelete, isDemoMode }) {
 
     loadStats()
     return () => { cancelled = true }
-  }, [project.id, isDemoMode])
+  }, [project.id])
 
   const formattedDate = new Date(project.created_at || Date.now()).toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric',

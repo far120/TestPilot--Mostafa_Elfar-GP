@@ -1,5 +1,4 @@
 import Modal from './ui/Modal.jsx'
-import { DEMO_DEVELOPER_INFO } from '../data/demoData.js'
 import {
   User,
   GraduationCap,
@@ -12,6 +11,22 @@ import {
   Sparkles,
   FileText
 } from 'lucide-react'
+
+const DEVELOPER_INFO = {
+  name: "Mostafa Elfar",
+  title: "Junior MERN Stack Developer",
+  degree: "B.Sc. Computer Science / Software Engineering (Graduation 2026)",
+  project: "TestPilot — Autonomous LLM Browser Testing Platform",
+  summary: "MERN stack developer with experience in building web applications.",
+  email: "mostafa.m.elfar@gmail.com",
+  github: "https://github.com/far120",
+  linkedin: "https://www.linkedin.com/in/mostafa-mahmoud-el-far-6a67732b5",
+  location: "Egypt",
+  skills: [
+    "React 18 & Vite",
+    "Tailwind CSS & Glassmorphism",
+  ]
+}
 
 export default function DeveloperProfileModal({ open, onClose }) {
   if (!open) return null
@@ -34,7 +49,7 @@ export default function DeveloperProfileModal({ open, onClose }) {
             <div className="space-y-1.5 flex-1">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                 <h2 className="text-2xl font-bold text-white tracking-tight">
-                  {DEMO_DEVELOPER_INFO.name}
+                  {DEVELOPER_INFO.name}
                 </h2>
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/30">
                   <CheckCircle2 className="h-3 w-3" /> Available for Hire
@@ -42,17 +57,17 @@ export default function DeveloperProfileModal({ open, onClose }) {
               </div>
               
               <p className="text-sm font-medium text-emerald-400">
-                {DEMO_DEVELOPER_INFO.title}
+                {DEVELOPER_INFO.title}
               </p>
               
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-slate-400 pt-1">
                 <span className="flex items-center gap-1">
                   <GraduationCap className="h-3.5 w-3.5 text-cyan-400" />
-                  {DEMO_DEVELOPER_INFO.degree}
+                  {DEVELOPER_INFO.degree}
                 </span>
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5 text-rose-400" />
-                  {DEMO_DEVELOPER_INFO.location}
+                  {DEVELOPER_INFO.location}
                 </span>
               </div>
             </div>
@@ -70,7 +85,7 @@ export default function DeveloperProfileModal({ open, onClose }) {
               <strong className="text-white">TestPilot</strong> represents Mostafa's graduation project showcasing an end-to-end autonomous visual web testing agent built with Playwright, FastAPI REST & WebSockets, LangGraph LLM decision graphs, and React 18.
             </p>
             <p className="text-slate-400">
-              {DEMO_DEVELOPER_INFO.summary}
+              {DEVELOPER_INFO.summary}
             </p>
           </div>
         </div>
@@ -82,7 +97,7 @@ export default function DeveloperProfileModal({ open, onClose }) {
             Technical Skillset
           </h3>
           <div className="flex flex-wrap gap-2">
-            {DEMO_DEVELOPER_INFO.skills.map((skill, i) => (
+            {DEVELOPER_INFO.skills.map((skill, i) => (
               <span
                 key={i}
                 className="rounded-lg border border-slate-700/60 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-emerald-500/40 hover:text-white transition-all"
@@ -97,7 +112,7 @@ export default function DeveloperProfileModal({ open, onClose }) {
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800">
           <div className="flex items-center gap-3">
             <a
-              href={DEMO_DEVELOPER_INFO.github}
+              href={DEVELOPER_INFO.github}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 hover:text-white transition-all"
@@ -108,7 +123,7 @@ export default function DeveloperProfileModal({ open, onClose }) {
               GitHub
             </a>
             <a
-              href={DEMO_DEVELOPER_INFO.linkedin}
+              href={DEVELOPER_INFO.linkedin}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 hover:text-white transition-all"
@@ -119,7 +134,7 @@ export default function DeveloperProfileModal({ open, onClose }) {
               LinkedIn
             </a>
             <a
-              href={`mailto:${DEMO_DEVELOPER_INFO.email}`}
+              href={`mailto:${DEVELOPER_INFO.email}`}
               className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 hover:text-white transition-all"
             >
               <Mail className="h-3.5 w-3.5 text-emerald-400" />

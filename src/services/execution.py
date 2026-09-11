@@ -166,6 +166,7 @@ class ExecutionService:
         except Exception as e:
             error_message = str(e)
             session_logger.exception("Execution failed: %s", e)
+            logger.exception("Execution failed: %s", e)
             await self._bus.emit(
                 ErrorEvent(
                     session_id=session_id,
@@ -183,9 +184,14 @@ class ExecutionService:
 
         # compute results
         duration = time.time() - start_time
-        result = final_state.get(
-            "result", "error" if error_message else "unknown"
-        )
+        if error_message:
+            result = "error"
+        else:
+            res = final_state.get("result")
+            if res in ("passed", "failed"):
+                result = res
+            else:
+                result = "error"
         log_entries: list[str] = final_state.get("log", [])
 
         if test_case.type == "N":

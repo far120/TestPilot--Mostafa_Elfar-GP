@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listTestCases } from '../api/testCases.js'
-import { DEMO_TEST_SUITES } from '../data/demoData.js'
 import { ArrowLeft, Plus, Folder, FileCode2, CheckCircle2, Play, ChevronRight } from 'lucide-react'
 
 function TestCaseItem({ tc, isActive, isRunning, onSelect }) {
@@ -47,35 +46,28 @@ export default function TestCaseSidebar({
   onNewTestCase,
   runningId = null,
   refreshToken = 0,
-  isDemoMode,
 }) {
   const navigate = useNavigate()
   const [testCases, setTestCases] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (isDemoMode) {
-      setTestCases(DEMO_TEST_SUITES)
-      setIsLoading(false)
-      return
-    }
-
     let cancelled = false
     async function loadTestCases() {
       if (!projectId) return
       setIsLoading(true)
       try {
         const response = await listTestCases(projectId)
-        if (!cancelled) setTestCases(response?.items ?? DEMO_TEST_SUITES)
+        if (!cancelled) setTestCases(response?.items ?? [])
       } catch {
-        if (!cancelled) setTestCases(DEMO_TEST_SUITES)
+        if (!cancelled) setTestCases([])
       } finally {
         if (!cancelled) setIsLoading(false)
       }
     }
     loadTestCases()
     return () => { cancelled = true }
-  }, [projectId, refreshToken, isDemoMode])
+  }, [projectId, refreshToken])
 
   return (
     <aside className="flex flex-col h-full w-72 shrink-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 shadow-2xl backdrop-blur-xl">

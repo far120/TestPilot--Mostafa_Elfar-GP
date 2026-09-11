@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from typing import Literal
+from dotenv import load_dotenv, find_dotenv
 
 
 class Settings:
@@ -15,6 +16,7 @@ class Settings:
     }
 
     def __init__(self) -> None:
+        load_dotenv(find_dotenv())
         self._api_keys: dict[str, str] = {}
         self.db_path: str = os.environ.get("DATABASE_PATH", "data/web_agent.db")
         self.max_action_loops = int(os.environ.get("AGENT_MAX_LOOPS", 16))
@@ -31,9 +33,9 @@ class Settings:
         if provider == "ollama" or provider == "llama_cpp":
             return ""
 
-        key = self._api_keys.get(provider)
+        env_var = self._ENV_KEYS.get(provider, f"{provider.upper()}_API_KEY")
+        key = self._api_keys.get(provider) or os.environ.get(env_var)
         if not key:
-            env_var = self._ENV_KEYS.get(provider, f"{provider.upper()}_API_KEY")
             raise ValueError(
                 f"API key for '{provider}' is not set. "
                 f"Set the {env_var} environment variable."
